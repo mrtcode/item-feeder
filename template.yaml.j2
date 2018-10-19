@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: >-
+  Lambda-based item feeder. Gets items from SQS and indexes/deletes them in Elasticsearch ({{ node_env }})
+Resources:
+  LambdaFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: {{ function_name }}
+      CodeUri: ./
+      Handler: lambda.handler
+      Runtime: nodejs8.10
+      MemorySize: 128
+      Timeout: 60
+      ReservedConcurrentExecutions: 2
+      Events:
+        SqsEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt SqsQueue.Arn
+            BatchSize: 10
+      Policies:
+        - VPCAccessPolicy: {}
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: {{ subnet_ids }}
+      Environment:
+        Variables:
+          NODE_ENV: {{ node_env }}
+          ES_HOSTS: {{ es_hosts }}
+          ES_INDEX: {{ es_index }}
+          ES_TYPE: {{ es_type }}
+  SqsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      # Visibility timeout is not allowed to be lower than Lambda timeout
+      VisibilityTimeout: 60
+      MessageRetentionPeriod: 1209600 # 14 days
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: {{ security_group_name }}
+      GroupDescription: Lambda to find identifiers from metadata
+      VpcId: {{ vpc_id }}
+  LoadBalancerSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: identifier-search Lambda ({{ node_env }})
+      GroupId: {{ lb_security_group_id }}
+      IpProtocol: tcp
+      FromPort: {{ lb_port }}
+      ToPort: {{ lb_port }}
+      SourceSecurityGroupId: !Ref LambdaSecurityGroup
+  ElasticsearchSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: identifier-search Lambda ({{ node_env }})
+      GroupId: {{ es_security_group_id }}
+      IpProtocol: tcp
+      FromPort: {{ es_port }}
+      ToPort: {{ es_port }}
+      SourceSecurityGroupId: {{ lb_security_group_id }}

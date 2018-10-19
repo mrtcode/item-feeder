@@ -1,0 +1,11 @@
+{
+  "name": "item-feeder",
+  "version": "0.0.1",
+  "description": "",
+  "scripts": {},
+  "author": "",
+  "license": "AGPL-3.0",
+  "dependencies": {
+    "elasticsearch": "^15.1.1"
+  }
+}
